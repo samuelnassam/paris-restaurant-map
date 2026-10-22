@@ -1,8 +1,0 @@
-{
-  "name": "Paris Restaurant Map",
-  "description": "Une carte interactive et carnet personnel pour découvrir, enregistrer, noter et organiser vos restaurants préférés à Paris.",
-  "requestFramePermissions": [
-    "geolocation"
-  ],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
