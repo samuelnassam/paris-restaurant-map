@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paris Restaurant Map</title>
+    <meta name="description" content="Une carte interactive et carnet personnel pour découvrir, enregistrer, noter et organiser vos restaurants préférés à Paris." />
+    <meta property="og:title" content="Paris Restaurant Map" />
+    <meta property="og:description" content="Une carte interactive et carnet personnel pour découvrir, enregistrer, noter et organiser vos restaurants préférés à Paris." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Suppress Vite HMR WebSocket connection logs in proxy preview
+      window.addEventListener('error', function (e) {
+        if (
+          e.message &&
+          (e.message.includes('WebSocket') ||
+            e.message.includes('vite') ||
+            e.filename?.includes('@vite/client'))
+        ) {
+          e.stopImmediatePropagation();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        var str = String(e.reason?.message || e.reason || '');
+        if (str.includes('WebSocket') || str.includes('vite') || String(e.reason?.stack || '').includes('@vite/client')) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

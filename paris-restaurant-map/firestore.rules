@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Health check / connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidRestaurant(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.address is string && data.address.size() > 0 && data.address.size() <= 500 &&
+             data.lat is number && data.lng is number &&
+             data.status in ['to_try', 'tested', 'favorite', 'to_avoid'] &&
+             (!('arrondissement' in data) || (data.arrondissement is string && data.arrondissement.size() <= 50)) &&
+             (!('cuisine' in data) || (data.cuisine is string && data.cuisine.size() <= 100)) &&
+             (!('priceRange' in data) || (data.priceRange in ['€', '€€', '€€€', '€€€€'])) &&
+             (!('personalRating' in data) || (data.personalRating is number && data.personalRating >= 0 && data.personalRating <= 5)) &&
+             (!('personalReview' in data) || (data.personalReview is string && data.personalReview.size() <= 5000)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('mustTryDishes' in data) || (data.mustTryDishes is list && data.mustTryDishes.size() <= 50)) &&
+             (!('photos' in data) || (data.photos is list && data.photos.size() <= 20)) &&
+             (!('collections' in data) || (data.collections is list && data.collections.size() <= 30)) &&
+             (!('website' in data) || (data.website is string && data.website.size() <= 500)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 500)) &&
+             (!('isDemo' in data) || (data.isDemo is bool)) &&
+             (!('visitedAt' in data) || (data.visitedAt == null || (data.visitedAt is string && data.visitedAt.size() <= 50))) &&
+             data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    function isValidCollection(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('color' in data) || (data.color is string && data.color.size() <= 50)) &&
+             (!('icon' in data) || (data.icon is string && data.icon.size() <= 50)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // Restaurants collection
+    match /restaurants/{restaurantId} {
+      allow get: if isSignedIn() && isValidId(restaurantId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(restaurantId) && isValidRestaurant(incoming());
+      allow update: if isSignedIn() && isValidId(restaurantId) &&
+                       existing().userId == request.auth.uid &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidRestaurant(incoming());
+      allow delete: if isSignedIn() && isValidId(restaurantId) && existing().userId == request.auth.uid;
+    }
+
+    // Collections collection
+    match /collections/{collectionId} {
+      allow get: if isSignedIn() && isValidId(collectionId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(collectionId) && isValidCollection(incoming());
+      allow update: if isSignedIn() && isValidId(collectionId) &&
+                       existing().userId == request.auth.uid &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidCollection(incoming());
+      allow delete: if isSignedIn() && isValidId(collectionId) && existing().userId == request.auth.uid;
+    }
+  }
+}
