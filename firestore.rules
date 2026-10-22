@@ -62,7 +62,7 @@ service cloud.firestore {
     // Restaurants collection
     match /restaurants/{restaurantId} {
       allow get: if isSignedIn() && isValidId(restaurantId) && existing().userId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && isValidId(restaurantId) && isValidRestaurant(incoming());
       allow update: if isSignedIn() && isValidId(restaurantId) &&
                        existing().userId == request.auth.uid &&
@@ -75,7 +75,7 @@ service cloud.firestore {
     // Collections collection
     match /collections/{collectionId} {
       allow get: if isSignedIn() && isValidId(collectionId) && existing().userId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && isValidId(collectionId) && isValidCollection(incoming());
       allow update: if isSignedIn() && isValidId(collectionId) &&
                        existing().userId == request.auth.uid &&
