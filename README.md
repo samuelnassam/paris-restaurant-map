@@ -1,4 +1,4 @@
-# 🍽️ Paris Restaurant Map & Concierge Gourmand IA
+# 🍽️ Paris Restaurant Map & Concierge Gourmand IA:  https://paris-restaurant-map.ai.studio/
 
 > **Application Full-Stack moderne de cartographie gastronomique et concierge culinaire intelligent pour les 20 arrondissements de Paris.**
 
