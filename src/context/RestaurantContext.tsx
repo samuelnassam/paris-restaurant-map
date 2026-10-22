@@ -52,6 +52,8 @@ interface RestaurantContextType {
   setIsConciergeOpen: (open: boolean) => void;
   user: User | null;
   authLoading: boolean;
+  error: string | null;
+  clearError: () => void;
   addRestaurant: (r: Omit<Restaurant, 'id' | 'userId' | 'createdAt'>) => Promise<Restaurant>;
   updateRestaurant: (id: string, updates: Partial<Restaurant>) => Promise<void>;
   deleteRestaurant: (id: string) => Promise<void>;
@@ -141,7 +143,9 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (stored) {
         const parsed: Restaurant[] = JSON.parse(stored);
         // Clean out any old automatic stock photos from demo restaurants
-        return parsed.map((r) => (r.isDemo ? { ...r, photos: [] } : r));
+        const cleaned = parsed.map((r) => (r.isDemo ? { ...r, photos: [] } : r));
+        // Limit localStorage data to prevent quota issues
+        return cleaned.slice(0, 100);
       }
     } catch (e) {
       console.warn('Could not read restaurants from localStorage', e);
@@ -149,11 +153,15 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return DEMO_RESTAURANTS;
   });
 
+  const [contextError, setContextError] = useState<string | null>(null);
+
   const [collections, setCollections] = useState<RestaurantCollection[]>(() => {
     try {
       const stored = localStorage.getItem(LOCAL_COLLECTIONS_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Limit collections to prevent quota issues
+        return parsed.slice(0, 50);
       }
     } catch (e) {
       console.warn('Could not read collections from localStorage', e);
@@ -166,6 +174,11 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedLocationForAdd, setSelectedLocationForAdd] = useState<{ lat: number; lng: number } | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
+
+  // Clear error function
+  const clearError = useCallback(() => {
+    setContextError(null);
+  }, []);
 
   const [mapCenter, setMapCenter] = useState<[number, number]>([48.8566, 2.3522]);
   const [mapZoom, setMapZoom] = useState<number>(13);
@@ -254,11 +267,22 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Auth observer and Firestore listener
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-    });
-    return () => unsubscribeAuth();
+    const unsubscribeAuth = onAuthStateChanged(
+      auth,
+      (currentUser) => {
+        setUser(currentUser);
+        setAuthLoading(false);
+        setContextError(null);
+      },
+      (error) => {
+        console.error('Firebase auth error:', error);
+        setContextError('Failed to initialize authentication. Please refresh the page.');
+        setAuthLoading(false);
+      }
+    );
+    return () => {
+      unsubscribeAuth();
+    };
   }, []);
 
   // Firestore sync when logged in
@@ -279,9 +303,12 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         } else {
           setRestaurants([]);
         }
+        setContextError(null);
       },
       (error) => {
+        console.error('Firestore restaurants error:', error);
         handleFirestoreError(error, OperationType.LIST, 'restaurants');
+        setContextError('Failed to load restaurants. Please check your connection.');
       }
     );
 
@@ -297,9 +324,12 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (loaded.length > 0) {
           setCollections(loaded);
         }
+        setContextError(null);
       },
       (error) => {
+        console.error('Firestore collections error:', error);
         handleFirestoreError(error, OperationType.LIST, 'collections');
+        setContextError('Failed to load collections. Please check your connection.');
       }
     );
 
@@ -336,127 +366,169 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const addRestaurant = useCallback(
     async (data: Omit<Restaurant, 'id' | 'userId' | 'createdAt'>): Promise<Restaurant> => {
-      const newId = `rest_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const now = new Date().toISOString();
-      const currentUserId = user ? user.uid : 'local-user';
+      try {
+        const newId = `rest_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        const now = new Date().toISOString();
+        const currentUserId = user ? user.uid : 'local-user';
 
-      const newRest: Restaurant = {
-        ...data,
-        id: newId,
-        userId: currentUserId,
-        createdAt: now,
-        updatedAt: now,
-      };
+        const newRest: Restaurant = {
+          ...data,
+          id: newId,
+          userId: currentUserId,
+          createdAt: now,
+          updatedAt: now,
+        };
 
-      if (user) {
-        try {
-          const docRef = doc(db, 'restaurants', newId);
-          await setDoc(docRef, newRest);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, `restaurants/${newId}`);
+        if (user) {
+          try {
+            const docRef = doc(db, 'restaurants', newId);
+            await setDoc(docRef, newRest);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.CREATE, `restaurants/${newId}`);
+            setContextError('Failed to save restaurant to cloud. Saved locally.');
+            setRestaurants((prev) => [newRest, ...prev]);
+          }
+        } else {
+          setRestaurants((prev) => [newRest, ...prev]);
         }
-      } else {
-        setRestaurants((prev) => [newRest, ...prev]);
-      }
 
-      setSelectedRestaurant(newRest);
-      setMapCenter([newRest.lat, newRest.lng]);
-      setMapZoom(15);
-      return newRest;
+        setSelectedRestaurant(newRest);
+        setMapCenter([newRest.lat, newRest.lng]);
+        setMapZoom(15);
+        setContextError(null);
+        return newRest;
+      } catch (error: any) {
+        setContextError('Failed to add restaurant: ' + (error.message || 'Unknown error'));
+        throw error;
+      }
     },
     [user]
   );
 
   const updateRestaurant = useCallback(
     async (id: string, updates: Partial<Restaurant>) => {
-      const now = new Date().toISOString();
-      const fullUpdates = { ...updates, updatedAt: now };
+      try {
+        const now = new Date().toISOString();
+        const fullUpdates = { ...updates, updatedAt: now };
 
-      if (user) {
-        try {
-          const docRef = doc(db, 'restaurants', id);
-          await updateDoc(docRef, fullUpdates);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.UPDATE, `restaurants/${id}`);
+        if (user) {
+          try {
+            const docRef = doc(db, 'restaurants', id);
+            await updateDoc(docRef, fullUpdates);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.UPDATE, `restaurants/${id}`);
+            setContextError('Failed to update restaurant in cloud. Updated locally.');
+            setRestaurants((prev) =>
+              prev.map((r) => (r.id === id ? { ...r, ...fullUpdates } : r))
+            );
+          }
+        } else {
+          setRestaurants((prev) =>
+            prev.map((r) => (r.id === id ? { ...r, ...fullUpdates } : r))
+          );
         }
-      } else {
-        setRestaurants((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, ...fullUpdates } : r))
-        );
-      }
 
-      setSelectedRestaurant((prev) => (prev && prev.id === id ? { ...prev, ...fullUpdates } : prev));
+        setSelectedRestaurant((prev) => (prev && prev.id === id ? { ...prev, ...fullUpdates } : prev));
+        setContextError(null);
+      } catch (error: any) {
+        setContextError('Failed to update restaurant: ' + (error.message || 'Unknown error'));
+        throw error;
+      }
     },
     [user]
   );
 
   const deleteRestaurant = useCallback(
     async (id: string) => {
-      if (user) {
-        try {
-          const docRef = doc(db, 'restaurants', id);
-          await deleteDoc(docRef);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.DELETE, `restaurants/${id}`);
+      try {
+        if (user) {
+          try {
+            const docRef = doc(db, 'restaurants', id);
+            await deleteDoc(docRef);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, `restaurants/${id}`);
+            setContextError('Failed to delete restaurant from cloud. Deleted locally.');
+            setRestaurants((prev) => prev.filter((r) => r.id !== id));
+          }
+        } else {
+          setRestaurants((prev) => prev.filter((r) => r.id !== id));
         }
-      } else {
-        setRestaurants((prev) => prev.filter((r) => r.id !== id));
-      }
 
-      setSelectedRestaurant((prev) => (prev?.id === id ? null : prev));
+        setSelectedRestaurant((prev) => (prev?.id === id ? null : prev));
+        setContextError(null);
+      } catch (error: any) {
+        setContextError('Failed to delete restaurant: ' + (error.message || 'Unknown error'));
+        throw error;
+      }
     },
     [user]
   );
 
   const addCollection = useCallback(
     async (name: string, color: string, icon: string, description?: string): Promise<RestaurantCollection> => {
-      const newId = `col_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      const now = new Date().toISOString();
-      const currentUserId = user ? user.uid : 'local-user';
+      try {
+        const newId = `col_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        const now = new Date().toISOString();
+        const currentUserId = user ? user.uid : 'local-user';
 
-      const newCol: RestaurantCollection = {
-        id: newId,
-        userId: currentUserId,
-        name,
-        color,
-        icon,
-        description: description || '',
-        createdAt: now,
-      };
+        const newCol: RestaurantCollection = {
+          id: newId,
+          userId: currentUserId,
+          name,
+          color,
+          icon,
+          description: description || '',
+          createdAt: now,
+        };
 
-      if (user) {
-        try {
-          const docRef = doc(db, 'collections', newId);
-          await setDoc(docRef, newCol);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, `collections/${newId}`);
+        if (user) {
+          try {
+            const docRef = doc(db, 'collections', newId);
+            await setDoc(docRef, newCol);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.CREATE, `collections/${newId}`);
+            setContextError('Failed to save collection to cloud. Saved locally.');
+            setCollections((prev) => [...prev, newCol]);
+          }
+        } else {
+          setCollections((prev) => [...prev, newCol]);
         }
-      } else {
-        setCollections((prev) => [...prev, newCol]);
+        setContextError(null);
+        return newCol;
+      } catch (error: any) {
+        setContextError('Failed to add collection: ' + (error.message || 'Unknown error'));
+        throw error;
       }
-      return newCol;
     },
     [user]
   );
 
   const deleteCollection = useCallback(
     async (id: string) => {
-      if (user) {
-        try {
-          const docRef = doc(db, 'collections', id);
-          await deleteDoc(docRef);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.DELETE, `collections/${id}`);
+      try {
+        if (user) {
+          try {
+            const docRef = doc(db, 'collections', id);
+            await deleteDoc(docRef);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, `collections/${id}`);
+            setContextError('Failed to delete collection from cloud. Deleted locally.');
+            setCollections((prev) => prev.filter((c) => c.id !== id));
+          }
+        } else {
+          setCollections((prev) => prev.filter((c) => c.id !== id));
         }
-      } else {
-        setCollections((prev) => prev.filter((c) => c.id !== id));
+        setRestaurants((prev) =>
+          prev.map((r) => ({
+            ...r,
+            collections: r.collections.filter((cId) => cId !== id),
+          }))
+        );
+        setContextError(null);
+      } catch (error: any) {
+        setContextError('Failed to delete collection: ' + (error.message || 'Unknown error'));
+        throw error;
       }
-      setRestaurants((prev) =>
-        prev.map((r) => ({
-          ...r,
-          collections: r.collections.filter((cId) => cId !== id),
-        }))
-      );
     },
     [user]
   );
@@ -482,9 +554,17 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const loginWithGoogle = useCallback(async () => {
     try {
       await signInWithPopup(auth, googleProvider);
+      setContextError(null);
     } catch (error: any) {
       console.error('Login error:', error);
-      alert('Connexion Google impossible dans cette fenêtre ou annulée.');
+      const errorMessage =
+        error.code === 'auth/popup-closed-by-user'
+          ? 'Connection cancelled.'
+          : error.code === 'auth/network-request-failed'
+            ? 'Network error. Please check your connection.'
+            : 'Google connection failed. Please try again.';
+      setContextError(errorMessage);
+      alert(errorMessage);
     }
   }, []);
 
@@ -493,8 +573,10 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       await signOut(auth);
       setRestaurants(DEMO_RESTAURANTS);
       setSelectedRestaurant(null);
+      setContextError(null);
     } catch (error) {
       console.error('Logout error:', error);
+      setContextError('Failed to logout. Please try again.');
     }
   }, []);
 
@@ -593,6 +675,8 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsConciergeOpen,
         user,
         authLoading,
+        error: contextError,
+        clearError,
         addRestaurant,
         updateRestaurant,
         deleteRestaurant,
