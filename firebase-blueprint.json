@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Restaurant": {
+      "title": "Restaurant",
+      "description": "Un restaurant parisien enregistré par l'utilisateur",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "address": { "type": "string", "maxLength": 500 },
+        "arrondissement": { "type": "string", "maxLength": 50 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "status": { "type": "string", "enum": ["to_try", "tested", "favorite", "to_avoid"] },
+        "cuisine": { "type": "string", "maxLength": 100 },
+        "priceRange": { "type": "string", "enum": ["€", "€€", "€€€", "€€€€"] },
+        "personalRating": { "type": "number" },
+        "personalReview": { "type": "string", "maxLength": 5000 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "mustTryDishes": { "type": "array" },
+        "visitedAt": { "type": "string" },
+        "photos": { "type": "array" },
+        "collections": { "type": "array" },
+        "website": { "type": "string", "maxLength": 500 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "googleMapsUrl": { "type": "string", "maxLength": 500 },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "address", "lat", "lng", "status", "createdAt"]
+    },
+    "Collection": {
+      "title": "Collection",
+      "description": "Une collection personnalisée de restaurants",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "color": { "type": "string", "maxLength": 50 },
+        "icon": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/restaurants/{restaurantId}": {
+      "schema": "Restaurant",
+      "description": "Collection de restaurants sauvegardés"
+    },
+    "/collections/{collectionId}": {
+      "schema": "Collection",
+      "description": "Collection de catégories personnalisées de l'utilisateur"
+    }
+  }
+}

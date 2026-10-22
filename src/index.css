@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* Leaflet Paris Map Customizations */
+.leaflet-container {
+  font-family: inherit;
+  width: 100%;
+  height: 100%;
+  background-color: #f8fafc;
+}
+
+.dark .leaflet-container {
+  background-color: #121214 !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  padding: 0.25rem;
+}
+
+.dark .leaflet-popup-content-wrapper {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border: 1px solid #27272a;
+}
+
+.dark .leaflet-popup-tip {
+  background-color: #18181b;
+}
+
+.custom-paris-marker {
+  background: transparent;
+  border: none;
+}
+
+.add-pin-marker {
+  background: transparent;
+  border: none;
+}
+
+.user-location-marker {
+  background: transparent;
+  border: none;
+}
+
+/* Bulletproof Night Mode for Leaflet Map Tiles on OpenStreetMap */
+.dark .leaflet-tile-pane,
+.night-tiles-active .leaflet-tile-pane {
+  filter: brightness(0.65) invert(1) contrast(2.6) hue-rotate(195deg) saturate(0.3) brightness(0.75) !important;
+}
+
+/* Hide scrollbar for clean horizontal scrolls */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
