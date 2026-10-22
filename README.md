@@ -133,15 +133,6 @@ npm start
 
 ---
 
-## 💼 Valorisation CV & Compétences Démontrées
-
-Ce projet illustre des compétences techniques concrètes et recherchées en ingénierie logicielle :
-
-- **Frontend Moderne (React 19, TypeScript, Tailwind CSS v4)** : Architecture modulaire basée sur les hooks personnalisés, Context API optimisé, design épuré, zéro dette technique.
-- **Intégration d'IA Générative (Google GenAI SDK)** : Prompt engineering avec injection de contexte dynamique, formatage JSON strict, gestion des fallbacks et résilience backend.
-- **Systèmes d'Information Géographique (SIG / GIS)** : Intégration de Leaflet, tuiles cartographiques dynamiques, calcul géodésique de Haversine et gestion de la géolocalisation HTML5.
-- **Architecture Backend & Sécurité (Node.js, Express, Firebase)** : Proxy backend pour protéger les clés d'API secrètes, règles de sécurité Firestore RBAC, gestion de sessions OAuth 2.0 Google.
-- **UX & Résilience Produit** : Conception Offline-first sans blocage d'inscription (Guest mode + Cloud Sync), gestion d'erreurs défensive et design réactif desktop / mobile.
 
 ---
 
